@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user account information and premium status.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "isPremium": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "isPremium"]
+    },
+    "SessionRecord": {
+      "title": "Session Record",
+      "description": "Records of speech practice sessions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "exerciseId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "score": { "type": "number" },
+        "feedback": { "type": "string" }
+      },
+      "required": ["userId", "exerciseId", "score"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "SessionRecord",
+      "description": "Individual practice sessions"
+    }
+  }
+}
