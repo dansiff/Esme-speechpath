@@ -9,6 +9,7 @@
         "displayName": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "isPremium": { "type": "boolean" },
+        "isAutismAddonActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "isPremium"]
@@ -25,6 +26,36 @@
         "feedback": { "type": "string" }
       },
       "required": ["userId", "exerciseId", "score"]
+    },
+    "SensoryProfile": {
+      "title": "Sensory Profile",
+      "description": "UI adjustments for sensory needs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "childProfileId": { "type": "string" },
+        "calmingColors": { "type": "boolean" },
+        "reducedMotion": { "type": "boolean" },
+        "highContrast": { "type": "boolean" },
+        "fontScale": { "type": "number" },
+        "showVisualTimer": { "type": "boolean" }
+      },
+      "required": ["id", "childProfileId"]
+    },
+    "FirstThenBoard": {
+      "title": "First/Then Board",
+      "description": "Visual schedule for tasks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "childProfileId": { "type": "string" },
+        "firstAction": { "type": "string" },
+        "firstImage": { "type": "string" },
+        "thenAction": { "type": "string" },
+        "thenImage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "childProfileId", "firstAction", "thenAction"]
     }
   },
   "firestore": {
@@ -35,6 +66,14 @@
     "/users/{userId}/sessions/{sessionId}": {
       "schema": "SessionRecord",
       "description": "Individual practice sessions"
+    },
+    "/users/{userId}/childProfiles/{childId}/sensoryProfile": {
+      "schema": "SensoryProfile",
+      "description": "Sensory settings for a child"
+    },
+    "/users/{userId}/childProfiles/{childId}/firstThenBoards/{boardId}": {
+      "schema": "FirstThenBoard",
+      "description": "Visual schedules for a child"
     }
   }
 }

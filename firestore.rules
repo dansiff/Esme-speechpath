@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (Auth UID)
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - displayName: string (optional)
+    //   - email: string (required, email format)
+    //   - isPremium: boolean (required)
+    //   - isAutismAddonActive: boolean (required)
+    //   - createdAt: string (date-time format)
+    //   - activeProfileId: string (optional)
+    //   - profiles: list (optional) - Array of ChildProfile objects
+    //
+    // Collection: users/{userId}/sessions
+    // Document ID: sessionId
+    // Fields:
+    //   - userId: string (required)
+    //   - exerciseId: string (required)
+    //   - timestamp: string (date-time format)
+    //   - score: number (required)
+    //   - feedback: string (optional)
+    //
+    // Collection: users/{userId}/childProfiles/{childId}/sensoryProfile
+    // Document ID: 'default'
+    // Fields:
+    //   - id: string (required)
+    //   - childProfileId: string (required)
+    //   - calmingColors: boolean (optional)
+    //   - reducedMotion: boolean (optional)
+    //   - highContrast: boolean (optional)
+    //   - fontScale: number (optional)
+    //   - showVisualTimer: boolean (optional)
+    //
+    // Collection: users/{userId}/childProfiles/{childId}/firstThenBoards
+    // Document ID: boardId
+    // Fields:
+    //   - id: string (required)
+    //   - childProfileId: string (required)
+    //   - firstAction: string (required)
+    //   - firstImage: string (optional)
+    //   - thenAction: string (required)
+    //   - thenImage: string (optional)
+    //   - createdAt: string (date-time format)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "danielSand711@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'isPremium', 'isAutismAddonActive', 'createdAt', 'activeProfileId', 'profiles']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && isValidEmail(data.email) &&
+             data.isPremium is bool &&
+             data.isAutismAddonActive is bool &&
+             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
+             (data.createdAt == null || isValidDateString(data.createdAt)) &&
+             (data.activeProfileId == null || (data.activeProfileId is string && data.activeProfileId.size() < 50)) &&
+             (data.profiles == null || data.profiles is list);
+    }
+
+    function isValidSession(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.exerciseId is string && data.exerciseId.size() < 100 &&
+             data.score is number && data.score >= 0 && data.score <= 100 &&
+             (data.feedback == null || (data.feedback is string && data.feedback.size() < 1000)) &&
+             (data.timestamp == null || isValidDateString(data.timestamp));
+    }
+
+    function isValidSensoryProfile(data) {
+      return hasOnlyAllowedFields(['id', 'childProfileId', 'calmingColors', 'reducedMotion', 'highContrast', 'fontScale', 'showVisualTimer']) &&
+             data.id is string &&
+             data.childProfileId is string &&
+             (data.calmingColors == null || data.calmingColors is bool) &&
+             (data.reducedMotion == null || data.reducedMotion is bool) &&
+             (data.highContrast == null || data.highContrast is bool) &&
+             (data.fontScale == null || data.fontScale is number) &&
+             (data.showVisualTimer == null || data.showVisualTimer is bool);
+    }
+
+    function isValidFirstThenBoard(data) {
+      return hasOnlyAllowedFields(['id', 'childProfileId', 'firstAction', 'firstImage', 'thenAction', 'thenImage', 'createdAt']) &&
+             data.id is string &&
+             data.childProfileId is string &&
+             data.firstAction is string && data.firstAction.size() > 0 && data.firstAction.size() < 200 &&
+             data.thenAction is string && data.thenAction.size() > 0 && data.thenAction.size() < 200 &&
+             (data.firstImage == null || (data.firstImage is string && data.firstImage.size() < 1000)) &&
+             (data.thenImage == null || (data.thenImage is string && data.thenImage.size() < 1000)) &&
+             (data.createdAt == null || isValidDateString(data.createdAt));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.isPremium == false && 
+                      request.resource.data.isAutismAddonActive == false;
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
+                      (isAdmin() || (request.resource.data.isPremium == resource.data.isPremium && 
+                                     request.resource.data.isAutismAddonActive == resource.data.isAutismAddonActive));
+
+      match /sessions/{sessionId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidSession(request.resource.data);
+        allow update: if false; // Sessions are immutable
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /childProfiles/{childId}/sensoryProfile/{profileId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) && isValidSensoryProfile(request.resource.data);
+      }
+
+      match /childProfiles/{childId}/firstThenBoards/{boardId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidFirstThenBoard(request.resource.data);
+        allow update: if isOwner(userId) && isValidFirstThenBoard(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+  }
+}

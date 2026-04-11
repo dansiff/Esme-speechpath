@@ -1,5 +1,5 @@
 {
   "name": "Bilingual & Brilliant Speech App",
-  "description": "A robust speech pathology platform for Bilingual and Brilliant Speech Therapy Chicago, featuring bilingual exercises, progress tracking, and AI-powered speech analysis.",
+  "description": "A robust speech pathology platform for Bilingual and Brilliant Speech Therapy Chicago, featuring bilingual exercises, progress tracking, AI-powered speech analysis, and a specialized Autism Support add-on with sensory-friendly tools.",
   "requestFramePermissions": ["microphone"]
 }
