@@ -15,6 +15,7 @@ interface ProUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpgrade: () => void;
+  isUpgrading?: boolean;
   styles: any;
 }
 
@@ -22,6 +23,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
   isOpen,
   onClose,
   onUpgrade,
+  isUpgrading,
   styles
 }) => {
   return (
@@ -101,9 +103,17 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
 
                 <button 
                   onClick={onUpgrade}
-                  className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-amber-200 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  disabled={isUpgrading}
+                  className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-amber-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Upgrade Now
+                  {isUpgrading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Upgrade Now"
+                  )}
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-medium">
                   Cancel anytime. No data plan required for local features.

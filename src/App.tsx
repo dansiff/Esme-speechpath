@@ -162,6 +162,7 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isNavbarHidden, setIsNavbarHidden] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const [profiles, setProfiles] = useState<ChildProfile[]>([
     {
@@ -218,6 +219,19 @@ export default function App() {
   };
 
   // Firebase Auth and Profile Sync
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success')) {
+      toast.success("Payment successful! Your Pro features are being activated.");
+      window.history.replaceState({}, document.title, "/");
+      playCue('chime');
+    }
+    if (urlParams.get('canceled')) {
+      toast.error("Payment canceled. No charges were made.");
+      window.history.replaceState({}, document.title, "/");
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -3399,7 +3413,7 @@ export default function App() {
               exit={{ opacity: 0 }}
             >
               <SettingsView
-                isPro={activeProfile.isPro}
+                isPro={isPremiumUser}
                 privacyMode={privacyMode}
                 cloudSync={cloudSync}
                 isNavbarHidden={isNavbarHidden}
@@ -3784,17 +3798,42 @@ export default function App() {
                   <button 
                     onClick={async () => {
                       if (!user) {
-                        handleLogin();
+                        toast.error("Please sign in to upgrade.");
                         return;
                       }
-                      const userDocRef = doc(db, 'users', user.uid);
-                      await updateDoc(userDocRef, { isPremium: true });
-                      setIsPremiumUser(true);
-                      toast.success('Upgraded to Pro!');
+                      
+                      setIsUpgrading(true);
+                      try {
+                        const response = await fetch("/api/create-checkout-session", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            userId: user.uid,
+                            userEmail: user.email,
+                          }),
+                        });
+                        
+                        const data = await response.json();
+                        if (data.url) {
+                          window.location.href = data.url;
+                        } else {
+                          throw new Error(data.error || "Failed to create checkout session");
+                        }
+                      } catch (error: any) {
+                        toast.error(`Upgrade failed: ${error.message}`);
+                      } finally {
+                        setIsUpgrading(false);
+                      }
                     }}
-                    className="w-full py-4 bg-white text-primary rounded-2xl font-bold hover:bg-slate-50 transition-all shadow-lg"
+                    disabled={isUpgrading}
+                    className="w-full py-4 bg-white text-primary rounded-2xl font-bold hover:bg-slate-50 transition-all shadow-lg flex items-center justify-center gap-2"
                   >
-                    {isPremiumUser ? 'Active' : 'Upgrade Now'}
+                    {isUpgrading ? (
+                      <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    ) : null}
+                    {isPremiumUser ? 'Active' : (isUpgrading ? 'Processing...' : 'Upgrade Now')}
                   </button>
                 </div>
 
@@ -4047,15 +4086,37 @@ export default function App() {
         isOpen={showProModal}
         onClose={() => setShowProModal(false)}
         onUpgrade={async () => {
-          if (activeProfile) {
-            const updated = { ...activeProfile, isPro: true };
-            await repository.saveProfile(updated);
-            setProfiles(prev => prev.map(p => p.id === activeProfile.id ? updated : p));
-            setShowProModal(false);
-            toast.success("Welcome to Pro! Real AI Analysis enabled.");
-            playCue('chime');
+          if (!user) {
+            toast.error("Please sign in to upgrade.");
+            return;
+          }
+          
+          setIsUpgrading(true);
+          try {
+            const response = await fetch("/api/create-checkout-session", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userId: user.uid,
+                userEmail: user.email,
+              }),
+            });
+            
+            const data = await response.json();
+            if (data.url) {
+              window.location.href = data.url;
+            } else {
+              throw new Error(data.error || "Failed to create checkout session");
+            }
+          } catch (error: any) {
+            toast.error(`Upgrade failed: ${error.message}`);
+          } finally {
+            setIsUpgrading(false);
           }
         }}
+        isUpgrading={isUpgrading}
         styles={styles}
       />
     </div>
